@@ -4,6 +4,8 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 // @ts-expect-error JS plugin alongside the TS vite config
 import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
 
@@ -12,6 +14,23 @@ import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
  * async `configureServer` hooks. Production: `src/lib/db` kicks `ensureDbReady`
  * on import.
  */
+function copyPgliteAssets() {
+  const src = join(process.cwd(), "node_modules/@electric-sql/pglite/dist");
+  const dests = [
+    join(process.cwd(), ".vercel/output/functions/__server.func/_libs"),
+    join(process.cwd(), ".output/server"),
+  ];
+  const files = ["pglite.data", "pglite.wasm", "initdb.wasm"];
+  for (const dest of dests) {
+    mkdirSync(dest, { recursive: true });
+    for (const file of files) {
+      const from = join(src, file);
+      if (!existsSync(from)) continue;
+      copyFileSync(from, join(dest, file));
+    }
+  }
+}
+
 function pgliteBootstrapPlugin(): Plugin {
   return {
     name: "app-builder:pglite-bootstrap",
@@ -154,6 +173,14 @@ export default defineConfig(({ command }) => ({
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.
             serverDir: "./server",
+            hooks: {
+              compiled() {
+                copyPgliteAssets();
+              },
+              close() {
+                copyPgliteAssets();
+              },
+            },
           }),
         ]
       : []),
