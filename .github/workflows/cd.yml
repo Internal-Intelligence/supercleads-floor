@@ -1,0 +1,134 @@
+name: CD
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+env:
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_UkqIRVcpfg7Xz46nHOcppuoI' }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_IV4JgO6ms75yo0ZScasjD9Z3Yo1P' }}
+
+jobs:
+  preview:
+    name: Preview (Vercel)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: preview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Require Vercel token
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::notice::Add repo secret VERCEL_TOKEN (Vercel → Account Settings → Tokens) to enable preview deploys."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Pull Vercel env
+        if: env.SKIP != '1'
+        run: npx vercel@41 pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        if: env.SKIP != '1'
+        run: npx vercel@41 build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy preview
+        if: env.SKIP != '1'
+        id: deploy
+        run: |
+          url=$(npx vercel@41 deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL
+        if: env.SKIP != '1' && steps.deploy.outputs.url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `${{ steps.deploy.outputs.url }}`;
+            const body = `Preview is up: ${url}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const mine = comments.find((c) => c.user?.type === "Bot" && c.body?.startsWith("Preview is up:"));
+            if (mine) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: mine.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  production:
+    name: Production (Vercel)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://supercleads-floor.vercel.app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Require Vercel token
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::notice::Add repo secret VERCEL_TOKEN to ship production from Actions."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Pull Vercel env
+        if: env.SKIP != '1'
+        run: npx vercel@41 pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        if: env.SKIP != '1'
+        run: npx vercel@41 build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy production
+        if: env.SKIP != '1'
+        run: |
+          url=$(npx vercel@41 deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Production: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url"
