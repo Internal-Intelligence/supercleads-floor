@@ -29,6 +29,7 @@
  * a verified id via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
+import { memoryAdapter } from "better-auth/adapters/memory";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
@@ -46,8 +47,11 @@ import {
   PREVIEW_EMBEDDER_ORIGINS,
 } from "./preview";
 
-// Kick (and share) PGLite bootstrap as soon as the auth server module loads.
-void ensureDbReady();
+// Kick PGLite only in preview. On Vercel without DATABASE_URL the wasm
+// bundle is copied at build time; don't crash the auth module on import.
+if (!process.env.VERCEL) {
+  void ensureDbReady();
+}
 
 /**
  * Preview secret must outlive module reloads: PGLite (and its session rows) is
@@ -208,9 +212,13 @@ const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
 // embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
 // SAME DB as app data, including email/password users. Both use the Better Auth
 // schema from `migrations/0001_auth.sql`.
+const onVercel = Boolean(process.env.VERCEL);
+const vercelMemory: Record<string, unknown[]> = {};
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
-  : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
+  : onVercel
+    ? memoryAdapter(vercelMemory)
+    : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
 /** Session token cookie name — also read by the live-preview popup completion page. */
 export const SESSION_TOKEN_COOKIE = "grok-auth.session_token";
@@ -272,7 +280,7 @@ export const auth = betterAuth({
   // (incl. the client's `/get-session`) skip the DB — this shrinks the "loading"
   // window and reduces auth flicker. See the `auth` skill for the full
   // flicker-prevention guidance (gate on `isPending`; SSR the session).
-  session: { cookieCache: { enabled: true, maxAge: 300 } },
+  session: { cookieCache: { enabled: true, maxAge: 60 * 60 * 24 * 7 } },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
   ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
