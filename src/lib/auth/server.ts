@@ -224,7 +224,12 @@ function shouldUseMemoryAuth(): boolean {
   return Boolean(vercel) && vercel !== "0" && vercel !== "false";
 }
 
-const vercelMemory: Record<string, unknown[]> = {};
+const vercelMemory: Record<string, unknown[]> = {
+  user: [],
+  session: [],
+  account: [],
+  verification: [],
+};
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : shouldUseMemoryAuth()
