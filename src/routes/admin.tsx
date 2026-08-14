@@ -9,7 +9,7 @@ import { OverrideConfirm, type OverrideDraft } from "@/components/override-confi
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getConversion, listActivity, listTeam, updateTeammate } from "@/lib/floor/server";
+import { getConversion, getDbStatus, listActivity, listTeam, updateTeammate } from "@/lib/floor/server";
 import { firstName } from "@/lib/floor/period";
 import type { FloorRole } from "@/lib/floor/types";
 import { formatPay } from "@/lib/floor/pay";
@@ -29,6 +29,7 @@ function AdminDesk() {
   const queryClient = useQueryClient();
   const team = useQuery({ queryKey: ["team"], queryFn: () => listTeam() });
   const activity = useQuery({ queryKey: ["activity"], queryFn: () => listActivity() });
+  const db = useQuery({ queryKey: ["db-status"], queryFn: () => getDbStatus() });
   const [confirm, setConfirm] = useState<OverrideDraft | null>(null);
   const [pane, setPane] = useState<"seats" | "desk" | "rates">("seats");
   const conversion = useQuery({
@@ -79,6 +80,15 @@ function AdminDesk() {
         <p className="mt-1 max-w-xl text-sm text-muted">
           Override seats, review W-9s, approve time, and answer the floor.
         </p>
+        {db.data ? (
+          <p className="mt-3 text-sm">
+            <Badge tone={db.data.persistent && db.data.ok ? "pine" : "warn"}>
+              {db.data.persistent && db.data.ok
+                ? "Database live · sales stick"
+                : "Database temporary · add Neon on Vercel"}
+            </Badge>
+          </p>
+        ) : null}
       </div>
 
       <div className="flex gap-1 rounded-sm bg-raised p-1">

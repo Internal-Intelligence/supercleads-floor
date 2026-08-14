@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getSql } from "@/lib/db";
+import { dbSource, getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { periodRange, todayIso, initialsFrom, toIsoDay, firstName, isIsoDay } from "./period";
 import type {
@@ -536,6 +536,24 @@ export const bootstrapFloor = createServerFn({ method: "POST" })
     const me = await ensureProfileFor(context.userId);
     await healAdminSeats();
     return (await getProfile(context.userId)) ?? me;
+  });
+
+export const getDbStatus = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    let ok = false;
+    try {
+      const sql = await getSql();
+      await sql`select 1 as ok`;
+      ok = true;
+    } catch {
+      ok = false;
+    }
+    return {
+      backend: dbSource,
+      persistent: dbSource === "neon",
+      ok,
+    };
   });
 
 export const getFloorState = createServerFn({ method: "GET" })
