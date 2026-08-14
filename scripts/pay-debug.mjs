@@ -1,0 +1,20 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(String(e)));
+page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+
+const email = `paydebug.${Date.now()}@supercleads.com`;
+await page.goto("http://127.0.0.1:8080/login", { waitUntil: "networkidle", timeout: 45000 });
+await page.getByRole("button", { name: /create an account/i }).click();
+await page.getByPlaceholder("Jaydan").fill("Closer One");
+await page.locator('input[type="email"]').fill(email);
+await page.locator('input[type="password"]').fill("FloorBoard4995");
+await page.getByRole("button", { name: /create floor account/i }).click();
+await page.waitForTimeout(4000);
+console.log("url", page.url());
+console.log("text", (await page.locator("body").innerText()).slice(0, 1500));
+console.log("errors", errors);
+await page.screenshot({ path: "/workspace/screenshots/pay-debug.png" });
+await browser.close();

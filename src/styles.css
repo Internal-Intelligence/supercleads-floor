@@ -1,0 +1,170 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-bg: #0b0c0e;
+  --color-surface: #141518;
+  --color-raised: #1b1c20;
+  --color-fg: #f3f0e8;
+  --color-muted: #9a968c;
+  --color-subtle: #6d6a63;
+  --color-primary: #ece7db;
+  --color-primary-fg: #121316;
+  --color-border: #2a2b30;
+  --color-board: #ebe6d8;
+  --color-board-ink: #16171a;
+  --color-board-muted: #6b675d;
+  --color-board-line: #d6d0c0;
+  --color-board-rail: #e3ddd0;
+  --color-marker: #1c1d20;
+  --color-wb: #f7fbff;
+  --color-wb-row: #e7f4fb;
+  --color-wb-bar: #00a0d6;
+  --color-wb-ink: #14324a;
+  --color-wb-line: #b7d6e8;
+  --color-frame: #c8cad0;
+  --color-pine: #4d7a62;
+  --color-danger: #c2412b;
+  --color-warn: #b45309;
+  --color-ring: #ece7db;
+
+  --font-sans: "Geist", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+
+  --shadow-board:
+    0 0 0 1px rgba(18, 19, 22, 0.08),
+    0 18px 40px -20px rgba(0, 0, 0, 0.45);
+  --shadow-frame:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px #9ea1a8,
+    0 22px 40px -24px rgba(0, 0, 0, 0.55);
+  --shadow-ink: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    overflow-x: clip;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes marker-draw {
+  from {
+    stroke-dashoffset: 48;
+    opacity: 0.2;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes x-pop {
+  from {
+    transform: scale(0.86);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.marker-x {
+  animation: marker-draw 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.x-enter {
+  animation: x-pop 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.snap-row {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.snap-row::-webkit-scrollbar {
+  display: none;
+}
+
+.snap-card {
+  scroll-snap-align: start;
+}
+
+.marker-pad {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+[data-sheet][data-drawing="true"] {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.wb-frame {
+  background: linear-gradient(180deg, #eceef1 0%, #c5c7cc 48%, #9b9ea5 100%);
+  box-shadow: var(--shadow-frame);
+}
+
+

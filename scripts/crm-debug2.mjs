@@ -1,0 +1,25 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+page.on("pageerror", (e) => console.log("PAGEERROR", String(e)));
+page.on("console", (m) => { if (m.type() === "error") console.log("CONSOLE", m.text()); });
+
+const email = `crmd3.${Date.now()}@supercleads.com`;
+await page.goto("http://127.0.0.1:8080/login", { waitUntil: "networkidle", timeout: 45000 });
+await page.getByRole("button", { name: /create an account/i }).click();
+await page.getByPlaceholder("Jaydan").fill("Closer One");
+await page.locator('input[type="email"]').fill(email);
+await page.locator('input[type="password"]').fill("FloorBoard4995");
+await page.getByRole("button", { name: /create floor account/i }).click();
+await page.getByRole("heading", { name: /the x board/i }).waitFor({ timeout: 25000 });
+await page.getByRole("navigation").getByRole("link", { name: "CRM" }).click();
+await page.getByRole("heading", { name: /pipeline/i }).waitFor({ timeout: 15000 });
+await page.getByRole("button", { name: /new record/i }).click();
+await page.locator("input[required]").first().fill("Riverside HVAC");
+await page.getByPlaceholder("HVAC, roofing…").fill("HVAC");
+await page.getByRole("button", { name: /^save$/i }).click();
+await page.waitForTimeout(3000);
+console.log("url", page.url());
+console.log("body", (await page.locator("body").innerText()).slice(0, 1500));
+await page.screenshot({ path: "/workspace/screenshots/crm-error.png" });
+await browser.close();
