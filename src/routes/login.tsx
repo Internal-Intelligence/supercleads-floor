@@ -9,27 +9,41 @@ import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
+function googleOkHere(): boolean {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname;
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "grok-sandbox.com" ||
+    h.endsWith(".grok-sandbox.com")
+  );
+}
+
 function loginErrorMessage(err: unknown, fallback: string): string {
   const raw = err instanceof Error ? err.message : "";
   const lower = raw.toLowerCase();
+  if (lower.includes("invalid redirect") || lower.includes("redirect_uri") || lower.includes("redirect uri")) {
+    return "Google can't return to this SuperC domain yet. Create a seat with email below.";
+  }
   if (lower.includes("invalid origin") || lower.includes("invalid_origin")) {
-    return "This window blocked sign-in. Allow pop-ups and tap Continue with Google again.";
+    return "This window blocked sign-in. Use email below, or allow pop-ups and try Google again.";
   }
   if (lower.includes("popup") || lower.includes("pop-up")) {
-    return "Allow pop-ups for this page, then tap Continue with Google again.";
+    return "Allow pop-ups, or sign in with email below.";
   }
   return raw || fallback;
 }
 
 function Login() {
   const { user, isPending } = useCurrentUserState();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up">("up");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"google" | "x" | "email" | null>(null);
-  const [showEmail, setShowEmail] = useState(true);
+  const showGoogle = googleOkHere();
 
   if (isPending) {
     return <div className="min-h-dvh bg-bg" />;
@@ -81,109 +95,98 @@ function Login() {
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Get on the floor</h1>
           <p className="text-sm text-muted">
-            Sign in with Google. Your seat opens on the SuperC board — same account
-            every day.
+            Create your seat with work email. Same login every day.
           </p>
         </div>
 
         {authEnabled ? (
           <div className="space-y-4">
-            {google ? (
-              <Button
-                type="button"
-                className="w-full"
-                disabled={busy !== null}
-                onClick={() => void onGoogle()}
-              >
-                <GoogleMark />
-                {busy === "google" ? "Opening Google…" : "Continue with Google"}
-              </Button>
-            ) : null}
-
-            {others.map((p) => (
-              <Button
-                key={p.providerId}
-                type="button"
-                variant="ink"
-                className="w-full"
-                disabled={busy !== null}
-                onClick={() => void onProvider(p.providerId, "x")}
-              >
-                Continue with {p.label}
-              </Button>
-            ))}
-
-            {error ? <p className="text-center text-sm text-danger">{error}</p> : null}
-
-            <div className="flex items-center gap-3 text-[11px] tracking-wide text-subtle uppercase">
-              <span className="h-px flex-1 bg-border" />
-              Or email
-              <span className="h-px flex-1 bg-border" />
-            </div>
-
-            {showEmail ? (
-              <form className="space-y-3" onSubmit={(e) => void onEmail(e)}>
-                {mode === "up" ? (
-                  <label className="block space-y-1.5">
-                    <Label>Name on the board</Label>
-                    <Input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Jaydan"
-                      autoComplete="name"
-                    />
-                  </label>
-                ) : null}
+            <form className="space-y-3" onSubmit={(e) => void onEmail(e)}>
+              {mode === "up" ? (
                 <label className="block space-y-1.5">
-                  <Label>Work email</Label>
+                  <Label>Name on the board</Label>
                   <Input
-                    type="email"
-                    required
-                    autoComplete="email"
-                    inputMode="email"
-                    placeholder="you@supercleads.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Jaydan"
+                    autoComplete="name"
                   />
                 </label>
-                <label className="block space-y-1.5">
-                  <Label>Password</Label>
-                  <Input
-                    type="password"
-                    required
-                    minLength={8}
-                    autoComplete={mode === "up" ? "new-password" : "current-password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </label>
-                <Button type="submit" variant="ink" className="w-full" disabled={busy !== null}>
-                  {mode === "up" ? "Create my seat" : "Sign in with email"}
-                </Button>
-                <button
-                  type="button"
-                  className="w-full text-center text-sm text-muted hover:text-fg"
-                  onClick={() => {
-                    setMode(mode === "up" ? "in" : "up");
-                    setError(null);
-                  }}
-                >
-                  {mode === "up" ? "Already have a password? Sign in" : "Need a password account?"}
-                </button>
-              </form>
-            ) : (
+              ) : null}
+              <label className="block space-y-1.5">
+                <Label>Work email</Label>
+                <Input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  inputMode="email"
+                  placeholder="you@supercleads.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <Label>Password</Label>
+                <Input
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete={mode === "up" ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </label>
+              <Button type="submit" className="w-full" disabled={busy !== null}>
+                {mode === "up" ? "Create my seat" : "Sign in with email"}
+              </Button>
               <button
                 type="button"
                 className="w-full text-center text-sm text-muted hover:text-fg"
-                onClick={() => setShowEmail(true)}
+                onClick={() => {
+                  setMode(mode === "up" ? "in" : "up");
+                  setError(null);
+                }}
               >
-                Use email and password instead
+                {mode === "up" ? "Already have a password? Sign in" : "Need a password account?"}
               </button>
-            )}
+            </form>
+
+            {error ? <p className="text-center text-sm text-danger">{error}</p> : null}
+
+            {showGoogle && google ? (
+              <>
+                <div className="flex items-center gap-3 text-[11px] tracking-wide text-subtle uppercase">
+                  <span className="h-px flex-1 bg-border" />
+                  Or
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+                <Button
+                  type="button"
+                  variant="ink"
+                  className="w-full"
+                  disabled={busy !== null}
+                  onClick={() => void onGoogle()}
+                >
+                  <GoogleMark />
+                  {busy === "google" ? "Opening Google…" : "Continue with Google"}
+                </Button>
+                {others.map((p) => (
+                  <Button
+                    key={p.providerId}
+                    type="button"
+                    variant="ink"
+                    className="w-full"
+                    disabled={busy !== null}
+                    onClick={() => void onProvider(p.providerId, "x")}
+                  >
+                    Continue with {p.label}
+                  </Button>
+                ))}
+              </>
+            ) : null}
 
             <p className="text-center text-xs text-subtle">
-              Allow pop-ups once so Google can open. Floor control is
-              teamconnect@supercleads.com. Live on supercsales.com.
+              Floor control is teamconnect@supercleads.com.
             </p>
           </div>
         ) : (

@@ -33,6 +33,7 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
+import { existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
@@ -49,7 +50,7 @@ import {
 
 // Kick PGLite only in preview. On Vercel without DATABASE_URL the wasm
 // bundle is copied at build time; don't crash the auth module on import.
-if (!process.env.VERCEL) {
+if (!existsSync("/var/task")) {
   void ensureDbReady();
 }
 
@@ -212,11 +213,13 @@ const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
 // embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
 // SAME DB as app data, including email/password users. Both use the Better Auth
 // schema from `migrations/0001_auth.sql`.
-const onVercel = Boolean(process.env.VERCEL);
+// Preview uses PGLite. Vercel lambdas live under /var/task and cannot open
+// the preview data file — use an in-memory auth store there until DATABASE_URL.
+const onLambda = existsSync("/var/task");
 const vercelMemory: Record<string, unknown[]> = {};
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
-  : onVercel
+  : onLambda
     ? memoryAdapter(vercelMemory)
     : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
