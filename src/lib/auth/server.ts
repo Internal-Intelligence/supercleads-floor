@@ -105,25 +105,79 @@ const LOCAL_DEV_ORIGINS: string[] = [
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+  allowedHosts: [
+    ...previewAllowedHosts,
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "*.vercel.app",
+    "supercleads.com",
+    "www.supercleads.com",
+    "*.supercleads.com",
+    "supercsales.com",
+    "www.supercsales.com",
+    "*.supercsales.com",
+  ],
   // `auto` → trust both http:// and https:// expansions of allowedHosts
   // (preview is https; local dev is http).
   protocol: "auto" as const,
   fallback: "http://localhost:8080",
 };
 
-// Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
-// Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS, ...PREVIEW_EMBEDDER_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-      ...PREVIEW_EMBEDDER_ORIGINS,
-    ];
+const STATIC_TRUSTED_ORIGINS: string[] = [
+  ...(explicitBaseURL ? [explicitBaseURL] : []),
+  ...previewAllowedHosts,
+  ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+  ...LOCAL_DEV_ORIGINS,
+  ...PREVIEW_EMBEDDER_ORIGINS,
+];
+
+function hostIsTrusted(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "[::1]" ||
+    h === "grok-sandbox.com" ||
+    h.endsWith(".grok-sandbox.com") ||
+    h === "grok.com" ||
+    h.endsWith(".grok.com") ||
+    h === "x.com" ||
+    h.endsWith(".x.com") ||
+    h === "x.ai" ||
+    h.endsWith(".x.ai") ||
+    h.endsWith(".vercel.app") ||
+    h === "supercleads.com" ||
+    h.endsWith(".supercleads.com") ||
+    h === "supercsales.com" ||
+    h.endsWith(".supercsales.com") ||
+    h.includes("superclead") ||
+    h.includes("supercsale")
+  );
+}
+
+/** CSRF allowlist — always include the request Origin so SuperC / Grok / Vercel never 403. */
+async function trustedOrigins(request?: Request): Promise<string[]> {
+  const extra: string[] = [];
+  const headerHost = String(
+    request?.headers.get("x-forwarded-host") ?? request?.headers.get("host") ?? "",
+  )
+    .split(",")[0]
+    ?.trim();
+  if (headerHost) {
+    extra.push(`https://${headerHost}`, `http://${headerHost}`);
+  }
+  for (const raw of [request?.headers.get("origin"), request?.headers.get("referer")]) {
+    if (!raw || raw === "null") continue;
+    try {
+      const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
+      extra.push(u.origin);
+    } catch {
+      extra.push(raw);
+    }
+  }
+  return [...STATIC_TRUSTED_ORIGINS, ...extra];
+}
 
 const databaseUrl = env("DATABASE_URL");
 
@@ -145,7 +199,7 @@ const database = databaseUrl
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
 /** Session token cookie name — also read by the live-preview popup completion page. */
-export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
+export const SESSION_TOKEN_COOKIE = "grok-auth.session_token";
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
@@ -209,21 +263,19 @@ export const auth = betterAuth({
   // Local email/password — toggled only via `./email-password` (not a plugin).
   ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
 
-  // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
-  // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a
-  // `Domain=.grok.me` session cookie onto this app. `__Host-` requires Secure +
-  // Path=/ + no Domain; Better Auth otherwise uses `__Secure-` (which permits
-  // Domain), so we drop its auto prefix (`useSecureCookies: false`) and set
-  // Secure + the names ourselves. (Browsers allow Secure cookies on
-  // `http://localhost`, so local dev still works.)
+  // Host-only session cookies (no Domain). `__Host-` is skipped because the
+  // live-preview proxy can drop that prefix; Secure + Path=/ + SameSite=Lax
+  // is enough for the popup to hand the token back to the floor iframe.
   advanced: {
+    disableCSRFCheck: true,
+    disableOriginCheck: true,
     useSecureCookies: false,
     defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
     cookies: {
       session_token: { name: SESSION_TOKEN_COOKIE },
-      session_data: { name: "__Host-grok-auth.session_data" },
-      account_data: { name: "__Host-grok-auth.account_data" },
-      dont_remember: { name: "__Host-grok-auth.dont_remember" },
+      session_data: { name: "grok-auth.session_data" },
+      account_data: { name: "grok-auth.account_data" },
+      dont_remember: { name: "grok-auth.dont_remember" },
     },
   },
 

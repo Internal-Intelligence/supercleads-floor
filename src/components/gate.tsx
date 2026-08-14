@@ -38,7 +38,7 @@ export function FloorGate({ children }: { children: (me: Profile) => ReactNode }
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id]);
 
   if (isPending) return <ShellSkeleton />;
   if (!user || error === "auth") return <RedirectToSignIn />;

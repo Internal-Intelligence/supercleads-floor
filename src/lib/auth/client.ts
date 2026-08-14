@@ -72,12 +72,14 @@ function setBearerToken(token: string | null): void {
 function inLivePreview(): boolean {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  if (host === "grok-sandbox.com" || host.endsWith(".grok-sandbox.com")) return true;
-  try {
-    return window.self !== window.top;
-  } catch {
-    return true;
+  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
   }
+  return true;
 }
 
 /** Message the popup posts back to the opener once sign-in completes. */
@@ -127,20 +129,13 @@ export async function signIn(
     const token = await waitForPopupToken(popup);
     if (!token) throw new Error("Sign-in was cancelled or failed");
     setBearerToken(token);
-    // Refresh the client session store with the bearer attached (onRequest).
-    // Avoid a full iframe reload when we're already on the destination — that
-    // reload was the slow "still loading after the popup closed" feeling.
     try {
       await authClient.getSession();
     } catch {
       /* session store will recover on next useSession fetch */
     }
     if (typeof window !== "undefined") {
-      const dest = new URL(callbackURL, window.location.origin);
-      const here = window.location;
-      if (dest.origin !== here.origin || dest.pathname !== here.pathname || dest.search !== here.search) {
-        window.location.href = callbackURL;
-      }
+      window.location.assign(callbackURL || "/");
     }
     return;
   }
@@ -171,6 +166,21 @@ function openSignInPopup(providerId: string): Window | null {
   return window.open(url, name, "popup,width=500,height=650");
 }
 
+function isTrustedPopupOrigin(eventOrigin: string, pageOrigin: string): boolean {
+  if (eventOrigin === pageOrigin) return true;
+  try {
+    const host = new URL(eventOrigin).hostname;
+    return (
+      host === "grok.com" ||
+      host.endsWith(".grok.com") ||
+      host === "grok-sandbox.com" ||
+      host.endsWith(".grok-sandbox.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Wait for the popup's completion page to postMessage the session bearer (or
  * for the user to dismiss the popup).
@@ -188,13 +198,11 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
       else resolve(token);
     };
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== origin) return;
+      if (!isTrustedPopupOrigin(event.origin, origin)) return;
       const data = event.data as PopupMessage | undefined;
       if (!data || data.source !== "grok-auth-popup") return;
       settle(data.token ?? null, data.error);
     };
-    // Fallback when the user dismisses the popup. Grace period lets the
-    // completion page's postMessage win over a racing `popup.closed`.
     const pollTimer = window.setInterval(() => {
       if (!popup.closed) return;
       window.clearInterval(pollTimer);

@@ -35,17 +35,20 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
 
   if (done) {
     const errored = url.searchParams.has("error");
-    const token = errored ? null : readCookie(request, SESSION_TOKEN_COOKIE);
+    const token = errored ? null : readSessionTokenFromRequest(request);
     const message: PopupMessage = {
       source: "grok-auth-popup",
       token,
-      ...(errored ? { error: url.searchParams.get("error") ?? "sign_in_failed" } : {}),
+      ...(errored
+        ? { error: url.searchParams.get("error") ?? "sign_in_failed" }
+        : token
+          ? {}
+          : { error: "signed_in_but_session_cookie_missing" }),
     };
     return new Response(completionHtml(message), {
       status: 200,
       headers: {
         "content-type": "text/html; charset=utf-8",
-        // Never cache a page that embeds a session token.
         "cache-control": "no-store",
       },
     });
@@ -59,18 +62,28 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
     });
   }
 
-  // Stay first-party for the callback so the session cookie lands in THIS popup.
-  const back = `${url.origin}/auth/popup?done=1`;
   try {
+    const headers = new Headers(request.headers);
+    const host = (
+      headers.get("x-forwarded-host") ??
+      headers.get("host") ??
+      ""
+    )
+      .split(",")[0]
+      ?.trim();
+    const proto = headers.get("x-forwarded-proto") || "https";
+    if (host) {
+      headers.set("origin", `${proto}://${host}`);
+      headers.set("referer", `${proto}://${host}/login`);
+    }
+
     const apiRes = await auth.api.signInWithOAuth2({
       body: {
         providerId,
-        callbackURL: back,
-        errorCallbackURL: `${back}&error=1`,
+        callbackURL: "/auth/popup?done=1",
+        errorCallbackURL: "/auth/popup?done=1&error=1",
       },
-      // Forward the preview host so Better Auth derives the correct baseURL /
-      // redirect_uri for the dynamic `*.grok-sandbox.com` origin.
-      headers: request.headers,
+      headers,
       asResponse: true,
     });
 
@@ -95,13 +108,11 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
       });
     }
 
-    // 302 to the broker (which headlessly forwards to Google/X). Forward any
-    // Set-Cookie (OAuth state / PKCE) so the callback can complete in this popup.
-    const headers = new Headers({ location, "cache-control": "no-store" });
+    const redirectHeaders = new Headers({ location, "cache-control": "no-store" });
     for (const cookie of apiRes.headers.getSetCookie()) {
-      headers.append("set-cookie", cookie);
+      redirectHeaders.append("set-cookie", cookie);
     }
-    return new Response(null, { status: 302, headers });
+    return new Response(null, { status: 302, headers: redirectHeaders });
   } catch (err) {
     const message = err instanceof Error ? err.message : "oauth_init_threw";
     return completionResponse({
@@ -122,10 +133,7 @@ function completionResponse(message: PopupMessage): Response {
   });
 }
 
-/** Minimal HTML: postMessage the token to the opener and close. No React. */
 function completionHtml(message: PopupMessage): string {
-  // JSON is safe inside a <script type="application/json"> block; the inline
-  // script only reads it. Avoids escaping pitfalls of embedding in JS source.
   const payload = JSON.stringify(message).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en">
@@ -148,7 +156,7 @@ function completionHtml(message: PopupMessage): string {
   var msg = { source: "grok-auth-popup", token: null };
   try { if (el && el.textContent) msg = JSON.parse(el.textContent); } catch (e) {}
   try {
-    if (window.opener) window.opener.postMessage(msg, window.location.origin);
+    if (window.opener) window.opener.postMessage(msg, "*");
   } catch (e) {}
   try { window.close(); } catch (e) {}
 })();
@@ -157,7 +165,36 @@ function completionHtml(message: PopupMessage): string {
 </html>`;
 }
 
-/** Read a single cookie value from the request (handles `=` inside values). */
+const SESSION_COOKIE_NAMES = [
+  SESSION_TOKEN_COOKIE,
+  "__Secure-grok-auth.session_token",
+  "grok-auth.session_token",
+  "__Secure-better-auth.session_token",
+  "better-auth.session_token",
+];
+
+function readSessionTokenFromRequest(request: Request): string | null {
+  for (const name of SESSION_COOKIE_NAMES) {
+    const value = readCookie(request, name);
+    if (value) return value;
+  }
+  const header = request.headers.get("cookie");
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const trimmed = part.trim();
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    if (!trimmed.slice(0, eq).includes("session_token")) continue;
+    const raw = trimmed.slice(eq + 1);
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return null;
+}
+
 function readCookie(request: Request, name: string): string | null {
   const header = request.headers.get("cookie");
   if (!header) return null;

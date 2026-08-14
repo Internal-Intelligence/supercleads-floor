@@ -9,6 +9,18 @@ import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
+function loginErrorMessage(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : "";
+  const lower = raw.toLowerCase();
+  if (lower.includes("invalid origin") || lower.includes("invalid_origin")) {
+    return "This window blocked sign-in. Allow pop-ups and tap Continue with Google again.";
+  }
+  if (lower.includes("popup") || lower.includes("pop-up")) {
+    return "Allow pop-ups for this page, then tap Continue with Google again.";
+  }
+  return raw || fallback;
+}
+
 function Login() {
   const { user, isPending } = useCurrentUserState();
   const [mode, setMode] = useState<"in" | "up">("in");
@@ -17,7 +29,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"google" | "x" | "email" | null>(null);
-  const [showEmail, setShowEmail] = useState(false);
+  const [showEmail, setShowEmail] = useState(true);
 
   if (isPending) {
     return <div className="min-h-dvh bg-bg" />;
@@ -30,7 +42,7 @@ function Login() {
     try {
       await signIn("grok-google", { callbackURL: "/" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      setError(loginErrorMessage(err, "Google sign-in failed"));
       setBusy(null);
     }
   }
@@ -41,7 +53,7 @@ function Login() {
     try {
       await signIn(providerId, { callbackURL: "/" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed");
+      setError(loginErrorMessage(err, "Sign-in failed"));
       setBusy(null);
     }
   }
@@ -54,7 +66,7 @@ function Login() {
       await signInWithEmail({ email, password, name, mode });
       window.location.href = "/";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in failed");
+      setError(loginErrorMessage(err, "Sign-in failed"));
       setBusy(null);
     }
   }

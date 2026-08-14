@@ -37,4 +37,13 @@ export const PREVIEW_EMBEDDER_ORIGINS = [
   "https://*.grok.com",
   "https://x.com",
   "https://*.x.com",
+  "https://x.ai",
+  "https://*.x.ai",
+  "https://*.vercel.app",
+  "https://supercleads.com",
+  "https://www.supercleads.com",
+  "https://*.supercleads.com",
+  "https://supercsales.com",
+  "https://www.supercsales.com",
+  "https://*.supercsales.com",
 ] as const;
