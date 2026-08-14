@@ -17,23 +17,27 @@ npm install
 npm run dev
 ```
 
-## CI / CD
+## Vercel + GitHub
 
-GitHub Actions on this repo:
+The project is linked as **`supercleads-floor`** on team `internal-intelligence-5094s-projects`
+(`prj_IV4JgO6ms75yo0ZScasjD9Z3Yo1P`). Config lives in [`vercel.json`](./vercel.json) and [`.vercel/project.json`](./.vercel/project.json).
+
+**Connect the GitHub app (one time, required for auto-deploy):**
+
+1. Install [Vercel for GitHub](https://github.com/apps/vercel) on `Internal-Intelligence` and grant **supercleads-floor**
+2. Open the project → **Settings → Git** and confirm the repo is `Internal-Intelligence/supercleads-floor`, production branch `main`
+3. Push to `main` (production) or open a PR (preview). Vercel comments the URL on the commit / PR
+
+Dashboard: [vercel.com/internal-intelligence-5094s-projects/supercleads-floor](https://vercel.com/internal-intelligence-5094s-projects/supercleads-floor)
+
+## CI / CD
 
 | Workflow | When | What |
 | --- | --- | --- |
 | **CI** | Every push and pull request | `npm ci` → typecheck → test → production build |
-| **CD** | Pull request | Vercel **preview** URL (commented on the PR) |
-| **CD** | Push to `main` | Vercel **production** |
+| **Vercel GitHub app** | Push / PR (once the app is installed) | Preview and production deploys |
+| **CD** | Push / PR | CLI fallback if repo secret `VERCEL_TOKEN` is set |
 
-Add one repo secret so CD can talk to Vercel:
+Optional CLI fallback: Vercel → Account Settings → [Tokens](https://vercel.com/account/tokens) → add as repo secret `VERCEL_TOKEN`.
 
-1. Vercel → Account Settings → [Tokens](https://vercel.com/account/tokens) → create
-2. GitHub → repo **Settings → Secrets and variables → Actions** → `VERCEL_TOKEN`
-
-Org and project IDs are already in the workflow (`team_UkqIRVcpfg7Xz46nHOcppuoI` / `prj_IV4JgO6ms75yo0ZScasjD9Z3Yo1P`). Override with repo variables `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` if you move the project.
-
-CI does not need the token. CD skips deploy (and posts a notice) until the secret is set.
-
-Production also needs `DATABASE_URL` on the Vercel project for live data. Auth uses the Grok broker (`GROK_AUTH_*`) when those env vars are set.
+Production needs `DATABASE_URL` on the Vercel project for live data. Auth uses the Grok broker (`GROK_AUTH_*`) when those env vars are set.
