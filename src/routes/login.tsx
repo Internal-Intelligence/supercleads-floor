@@ -183,7 +183,7 @@ function Login() {
 
             <p className="text-center text-xs text-subtle">
               Allow pop-ups once so Google can open. Floor control is
-              teamconnect@supercleads.com.
+              teamconnect@supercleads.com. Live on supercsales.com.
             </p>
           </div>
         ) : (
