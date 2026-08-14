@@ -213,13 +213,21 @@ const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
 // embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
 // SAME DB as app data, including email/password users. Both use the Better Auth
 // schema from `migrations/0001_auth.sql`.
-// Preview uses PGLite. Vercel lambdas live under /var/task and cannot open
-// the preview data file — use an in-memory auth store there until DATABASE_URL.
-const onLambda = existsSync("/var/task");
+function shouldUseMemoryAuth(): boolean {
+  if (databaseUrl) return false;
+  try {
+    if (existsSync("/var/task")) return true;
+  } catch {
+    return true;
+  }
+  const vercel = String(process.env.VERCEL ?? process.env.VERCEL_ENV ?? "");
+  return Boolean(vercel) && vercel !== "0" && vercel !== "false";
+}
+
 const vercelMemory: Record<string, unknown[]> = {};
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
-  : onLambda
+  : shouldUseMemoryAuth()
     ? memoryAdapter(vercelMemory)
     : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
