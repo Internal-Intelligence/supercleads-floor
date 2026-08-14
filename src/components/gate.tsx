@@ -33,7 +33,9 @@ export function FloorGate({ children }: { children: (me: Profile) => ReactNode }
       .catch((err: unknown) => {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : "Could not open the floor";
-        setError(message === "Unauthorized" ? "auth" : message);
+        // Stay signed in — a missing database is not a bad password.
+        if (message === "Unauthorized" && !user) setError("auth");
+        else setError(message);
       });
     return () => {
       cancelled = true;

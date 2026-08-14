@@ -64,6 +64,11 @@ const globalAuthRef = globalThis as typeof globalThis & {
   __grokAuthPreviewSecret__?: string;
 };
 function previewAuthSecret(): string {
+  // Same signing key on every Vercel isolate so a seat cookie still works
+  // after the next request. Override with BETTER_AUTH_SECRET in production.
+  if (existsSync("/var/task") || process.env.VERCEL) {
+    return "supercleads-floor-session-key-v1";
+  }
   globalAuthRef.__grokAuthPreviewSecret__ ??= randomBytes(32).toString("hex");
   return globalAuthRef.__grokAuthPreviewSecret__;
 }

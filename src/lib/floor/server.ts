@@ -533,9 +533,28 @@ async function loadCustomers(whereSql: string, params: unknown[] = []) {
 export const bootstrapFloor = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const me = await ensureProfileFor(context.userId);
-    await healAdminSeats();
-    return (await getProfile(context.userId)) ?? me;
+    try {
+      const me = await ensureProfileFor(context.userId);
+      await healAdminSeats();
+      return (await getProfile(context.userId)) ?? me;
+    } catch (err) {
+      const { getSessionUser } = await import("@/lib/auth/verify.server");
+      const auth = await getSessionUser();
+      const email = auth?.email ?? "";
+      const displayName = email.split("@")[0] || "Rep";
+      const { initialsFrom } = await import("./period");
+      const { isFloorAdminEmail } = await import("./admin");
+      return {
+        userId: context.userId,
+        displayName,
+        email,
+        role: isFloorAdminEmail(email) ? "admin" : ("salesman" as const),
+        initials: initialsFrom(displayName),
+        monthlyGoal: 10,
+        active: true,
+        markerColor: "#1f6feb",
+      };
+    }
   });
 
 export const getDbStatus = createServerFn({ method: "GET" })

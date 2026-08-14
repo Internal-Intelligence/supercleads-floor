@@ -238,15 +238,17 @@ export async function signInWithEmail(input: {
   if (password.length < 8) throw new Error("Password needs 8+ characters");
 
   if (input.mode === "up") {
-    const { error } = await authClient.signUp.email({
+    const { data, error } = await authClient.signUp.email({
       name: input.name?.trim() || email.split("@")[0] || "Rep",
       email,
       password,
     });
     if (error) throw new Error(error.message || "Could not create that seat");
+    if (data?.token) setBearerToken(data.token);
   } else {
-    const { error } = await authClient.signIn.email({ email, password });
+    const { data, error } = await authClient.signIn.email({ email, password });
     if (error) throw new Error(error.message || "Email or password is wrong");
+    if (data?.token) setBearerToken(data.token);
   }
 
   try {
