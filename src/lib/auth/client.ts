@@ -72,14 +72,12 @@ function setBearerToken(token: string | null): void {
 function inLivePreview(): boolean {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") {
-    try {
-      return window.self !== window.top;
-    } catch {
-      return true;
-    }
+  if (host === "grok-sandbox.com" || host.endsWith(".grok-sandbox.com")) return true;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
   }
-  return true;
 }
 
 /** Message the popup posts back to the opener once sign-in completes. */

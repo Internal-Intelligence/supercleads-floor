@@ -158,25 +158,39 @@ function hostIsTrusted(hostname: string): boolean {
 
 /** CSRF allowlist — always include the request Origin so SuperC / Grok / Vercel never 403. */
 async function trustedOrigins(request?: Request): Promise<string[]> {
-  const extra: string[] = [];
-  const headerHost = String(
-    request?.headers.get("x-forwarded-host") ?? request?.headers.get("host") ?? "",
-  )
-    .split(",")[0]
-    ?.trim();
-  if (headerHost) {
-    extra.push(`https://${headerHost}`, `http://${headerHost}`);
-  }
-  for (const raw of [request?.headers.get("origin"), request?.headers.get("referer")]) {
-    if (!raw || raw === "null") continue;
-    try {
-      const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
-      extra.push(u.origin);
-    } catch {
-      extra.push(raw);
+  try {
+    const extra: string[] = [];
+    const headerHost = String(
+      request?.headers.get("x-forwarded-host") ?? request?.headers.get("host") ?? "",
+    )
+      .split(",")[0]
+      ?.trim();
+    if (headerHost) {
+      extra.push(`https://${headerHost}`, `http://${headerHost}`);
     }
+    for (const raw of [request?.headers.get("origin"), request?.headers.get("referer")]) {
+      if (!raw || raw === "null") continue;
+      try {
+        const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
+        extra.push(u.origin);
+      } catch {
+        extra.push(raw);
+      }
+    }
+    extra.push(
+      "https://www.supercsales.com",
+      "https://supercsales.com",
+      "https://www.supercleads.com",
+      "https://supercleads.com",
+    );
+    return [...STATIC_TRUSTED_ORIGINS, ...extra];
+  } catch {
+    return [
+      ...STATIC_TRUSTED_ORIGINS,
+      "https://www.supercsales.com",
+      "https://supercsales.com",
+    ];
   }
-  return [...STATIC_TRUSTED_ORIGINS, ...extra];
 }
 
 const databaseUrl = env("DATABASE_URL");

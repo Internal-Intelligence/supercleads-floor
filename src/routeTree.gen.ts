@@ -17,6 +17,7 @@ import { Route as DeskRouteImport } from './routes/desk'
 import { Route as FollowUpsRouteImport } from './routes/follow-ups'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PayRouteImport } from './routes/pay'
+import { Route as AuthPopupRouteImport } from './routes/auth/popup'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
 import { Route as CrmCustomerIdRouteImport } from './routes/crm.$customerId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -61,6 +62,11 @@ const PayRoute = PayRouteImport.update({
   path: '/pay',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthPopupRoute = AuthPopupRouteImport.update({
+  id: '/auth/popup',
+  path: '/auth/popup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CrmIndexRoute = CrmIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/follow-ups': typeof FollowUpsRoute
   '/login': typeof LoginRoute
   '/pay': typeof PayRoute
+  '/auth/popup': typeof AuthPopupRoute
   '/crm/$customerId': typeof CrmCustomerIdRoute
   '/crm/': typeof CrmIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/follow-ups': typeof FollowUpsRoute
   '/login': typeof LoginRoute
   '/pay': typeof PayRoute
+  '/auth/popup': typeof AuthPopupRoute
   '/crm/$customerId': typeof CrmCustomerIdRoute
   '/crm': typeof CrmIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/follow-ups': typeof FollowUpsRoute
   '/login': typeof LoginRoute
   '/pay': typeof PayRoute
+  '/auth/popup': typeof AuthPopupRoute
   '/crm/$customerId': typeof CrmCustomerIdRoute
   '/crm/': typeof CrmIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/login'
     | '/pay'
+    | '/auth/popup'
     | '/crm/$customerId'
     | '/crm/'
     | '/api/auth/$'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/login'
     | '/pay'
+    | '/auth/popup'
     | '/crm/$customerId'
     | '/crm'
     | '/api/auth/$'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/follow-ups'
     | '/login'
     | '/pay'
+    | '/auth/popup'
     | '/crm/$customerId'
     | '/crm/'
     | '/api/auth/$'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   FollowUpsRoute: typeof FollowUpsRoute
   LoginRoute: typeof LoginRoute
   PayRoute: typeof PayRoute
+  AuthPopupRoute: typeof AuthPopupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/popup': {
+      id: '/auth/popup'
+      path: '/auth/popup'
+      fullPath: '/auth/popup'
+      preLoaderRoute: typeof AuthPopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/crm/': {
       id: '/crm/'
       path: '/'
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   FollowUpsRoute: FollowUpsRoute,
   LoginRoute: LoginRoute,
   PayRoute: PayRoute,
+  AuthPopupRoute: AuthPopupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
